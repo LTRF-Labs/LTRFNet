@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Nebula as root (it creates a utun interface), from boot; launchd starts it again if it stops. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>se.ltrf.ltrfnet.nebula</string>
+  <key>BundleProgram</key>
+  <string>Contents/MacOS/nebula</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>nebula</string>
+    <string>-config</string>
+    <string>/Users/Shared/ltrfnet/config.yml</string>
+  </array>
+  <key>AssociatedBundleIdentifiers</key>
+  <array>
+    <string>se.ltrf.ltrfnet</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>/var/log/ltrfnet-nebula.log</string>
+  <key>StandardErrorPath</key>
+  <string>/var/log/ltrfnet-nebula.log</string>
+</dict>
+</plist>

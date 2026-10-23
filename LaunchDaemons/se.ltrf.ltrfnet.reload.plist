@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- At load and when the app writes a file: installs the resolver and makes Nebula reload its PKI (SIGHUP).
+     Only a *.internal domain without "/": a process that runs as the user cannot redirect other domains. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>se.ltrf.ltrfnet.reload</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/sh</string>
+    <string>-c</string>
+    <string>d=$(cat /Users/Shared/ltrfnet/domain); case "$d" in */*) ;; *.internal) mkdir -p /etc/resolver; cp /Users/Shared/ltrfnet/resolver "/etc/resolver/$d" ;; esac; launchctl kill SIGHUP system/se.ltrf.ltrfnet.nebula</string>
+  </array>
+  <key>AssociatedBundleIdentifiers</key>
+  <array>
+    <string>se.ltrf.ltrfnet</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>WatchPaths</key>
+  <array>
+    <string>/Users/Shared/ltrfnet</string>
+  </array>
+</dict>
+</plist>
