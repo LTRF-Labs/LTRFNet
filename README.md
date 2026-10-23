@@ -3,6 +3,18 @@
 A menu bar app that joins this Mac to a [Nebula](https://github.com/slackhq/nebula) mesh. It gets its 8-hour host
 certificate from a signing service (the CA) with your Azure CLI login, and renews it.
 
+## Install
+
+```sh
+curl -fsSL https://github.com/LTRF-Labs/LTRFNet/releases/latest/download/LTRFNet.zip | ditto -x -k - /Applications
+```
+
+The app has an ad-hoc signature, not an Apple one. A download with `curl` gets no quarantine attribute, so macOS opens
+the app. If you download the zip with a browser, run `xattr -dr com.apple.quarantine /Applications/LTRFNet.app` once.
+
+To make a release, push a tag such as `v0.2.0`. The workflow `.github/workflows/release.yml` builds the app and attaches
+`LTRFNet.zip` to the release.
+
 ## Build
 
 Open `LTRFNet.xcodeproj` in Xcode and run, or:
