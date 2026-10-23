@@ -8,21 +8,24 @@ certificate from a signing service (the CA) with your Azure CLI login, and renew
 Open `LTRFNet.xcodeproj` in Xcode and run, or:
 
 ```sh
-xcodebuild -project LTRFNet.xcodeproj -scheme LTRFNet -derivedDataPath build -allowProvisioningUpdates build
+xcodebuild -project LTRFNet.xcodeproj -scheme LTRFNet -derivedDataPath build build
 open build/Build/Products/Debug/LTRFNet.app
 ```
 
 The build phase "Fetch Nebula" runs `scripts/fetch-nebula.sh`, which downloads the pinned Nebula release into `Vendor/`.
 To update Nebula, change `version` and `sha256` in that script. `swift scripts/make-icons.swift` draws the icons.
 
-Signing needs an Apple Development certificate (a free Personal Team is sufficient). Set `DEVELOPMENT_TEAM` in the
-project to your team.
+The app has an ad-hoc signature, so you need no Apple account or certificate.
 
 ## Use
 
 1. Run `az login` with an account that the CA accepts.
 2. Menu bar → **Settings…**, fill in all fields and save.
-3. Menu bar → **Enabled**. The first time, approve LTRFNet in System Settings → Login Items → Allow in the Background.
+3. Menu bar → **Install…** and enter your admin password. Do this again when the menu shows **Install…** after an
+   update.
+4. Menu bar → **Enabled**.
+
+**Uninstall…** removes the daemons, the copy of Nebula and the resolver.
 
 The menu shows until when the certificate is valid, or the error.
 
@@ -49,11 +52,14 @@ The menu shows until when the certificate is valid, or the error.
 | What | Where | Who |
 |---|---|---|
 | Settings | `~/.config/ltrfnet/config.json` | the app |
-| Key pair, certificates, `config.yml`, `resolver`, `domain` | `/Users/Shared/ltrfnet/` (0700) | the app writes, root reads |
-| Nebula | daemon `se.ltrf.ltrfnet.nebula` (`Contents/MacOS/nebula`) | root, from boot |
-| Resolver and reload | daemon `se.ltrf.ltrfnet.reload`: on each file change, copies `resolver` to `/etc/resolver/<domain>` and sends SIGHUP to Nebula | root |
+| Key pair, certificates, `config.yml`, `resolver`, `domain`, `enabled` | `/Users/Shared/ltrfnet/` (0700) | the app writes, root reads |
+| Nebula | daemon `se.ltrf.ltrfnet.nebula` runs `/Library/Application Support/LTRFNet/nebula` while `enabled` exists | root |
+| Resolver, reload and stop | daemon `se.ltrf.ltrfnet.reload`: on each file change, copies `resolver` to `/etc/resolver/<domain>`, then sends SIGHUP to Nebula, or SIGTERM when `enabled` is gone | root |
 
-- The app registers both daemons with `SMAppService` when you enable it and unregisters them when you disable it.
+- **Install…** runs `install.sh` from the app bundle as root (one password prompt). It copies Nebula out of the
+  bundle, so a process that runs as you cannot replace what root runs, and installs the daemons in
+  `/Library/LaunchDaemons`. The daemons need no team signature, so the app needs no paid Apple Developer membership.
+- The toggle makes or removes `/Users/Shared/ltrfnet/enabled`, so it needs no root.
 - The app opens at login. Every 30 minutes it renews the certificate when 4 hours or less are left.
 - The private key is yours, not root's: a process that runs as you could already get a certificate with your `az`
   login.

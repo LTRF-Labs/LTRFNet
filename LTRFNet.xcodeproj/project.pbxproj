@@ -11,6 +11,7 @@
 		AA0000000000000000000B02 /* nebula-cert in Copy Nebula */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000F02 /* nebula-cert */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		AA0000000000000000000B03 /* se.ltrf.ltrfnet.nebula.plist in Copy Launch Daemons */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000F03 /* se.ltrf.ltrfnet.nebula.plist */; };
 		AA0000000000000000000B04 /* se.ltrf.ltrfnet.reload.plist in Copy Launch Daemons */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000F04 /* se.ltrf.ltrfnet.reload.plist */; };
+		AA0000000000000000000B05 /* install.sh in Copy Launch Daemons */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000F05 /* install.sh */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -29,11 +30,12 @@
 		AA0000000000000000000C02 /* Copy Launch Daemons */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
-			dstPath = Contents/Library/LaunchDaemons;
-			dstSubfolderSpec = 1;
+			dstPath = "";
+			dstSubfolderSpec = 7;
 			files = (
 				AA0000000000000000000B03 /* se.ltrf.ltrfnet.nebula.plist in Copy Launch Daemons */,
 				AA0000000000000000000B04 /* se.ltrf.ltrfnet.reload.plist in Copy Launch Daemons */,
+				AA0000000000000000000B05 /* install.sh in Copy Launch Daemons */,
 			);
 			name = "Copy Launch Daemons";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -46,6 +48,7 @@
 		AA0000000000000000000F02 /* nebula-cert */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = "nebula-cert"; sourceTree = "<group>"; };
 		AA0000000000000000000F03 /* se.ltrf.ltrfnet.nebula.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = se.ltrf.ltrfnet.nebula.plist; sourceTree = "<group>"; };
 		AA0000000000000000000F04 /* se.ltrf.ltrfnet.reload.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = se.ltrf.ltrfnet.reload.plist; sourceTree = "<group>"; };
+		AA0000000000000000000F05 /* install.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = install.sh; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -82,6 +85,7 @@
 			children = (
 				AA0000000000000000000F03 /* se.ltrf.ltrfnet.nebula.plist */,
 				AA0000000000000000000F04 /* se.ltrf.ltrfnet.reload.plist */,
+				AA0000000000000000000F05 /* install.sh */,
 			);
 			path = LaunchDaemons;
 			sourceTree = "<group>";
@@ -231,11 +235,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = PD35KUBAG5;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_LSUIElement = YES;
@@ -250,11 +254,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = PD35KUBAG5;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_LSUIElement = YES;

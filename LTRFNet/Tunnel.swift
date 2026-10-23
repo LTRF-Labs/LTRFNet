@@ -1,26 +1,25 @@
-import Foundation
+import AppKit
 import Observation
 import ServiceManagement
 
 /// The tunnel: the two root daemons, the files they read in /Users/Shared/ltrfnet and the certificate renewal.
 ///
-/// The daemon se.ltrf.ltrfnet.nebula runs Nebula with config.yml. The daemon se.ltrf.ltrfnet.reload sees each file
-/// that the app writes there, copies `resolver` to /etc/resolver/<domain> and makes Nebula reload (SIGHUP).
+/// install.sh installs the daemons once, as root. The daemon se.ltrf.ltrfnet.nebula runs Nebula with config.yml while
+/// the file `enabled` exists. The daemon se.ltrf.ltrfnet.reload sees each file that the app writes or removes there,
+/// copies `resolver` to /etc/resolver/<domain>, and makes Nebula reload (SIGHUP) or stop (SIGTERM).
 /// The 8-hour certificate is renewed with the developer's az login when 4 hours or less are left.
 @MainActor @Observable
 final class Tunnel {
     static let directory = URL(filePath: "/Users/Shared/ltrfnet")
-    private static let daemons = ["se.ltrf.ltrfnet.nebula.plist", "se.ltrf.ltrfnet.reload.plist"].map(SMAppService.daemon(plistName:))
+    private static let enabledFile = directory.appending(path: "enabled")
     private static let renewBefore: TimeInterval = 4 * 3600
     private static let nebulaCert = Bundle.main.url(forAuxiliaryExecutable: "nebula-cert")!.path
 
     private(set) var config: Config
-    private(set) var daemonStatus = daemons[0].status
+    private(set) var installed = Tunnel.isInstalled()
+    private(set) var enabled = FileManager.default.fileExists(atPath: Tunnel.enabledFile.path)
     private(set) var expires: Date?
     private(set) var problem: String?
-
-    var enabled: Bool { daemonStatus == .enabled }
-    var needsApproval: Bool { daemonStatus == .requiresApproval }
 
     var status: String {
         if let problem { return problem }
@@ -51,12 +50,41 @@ final class Tunnel {
             if on {
                 try await self.writeFiles()
                 try await self.renew(force: false)
-                for daemon in Self.daemons where daemon.status != .enabled { try daemon.register() }
-            } else {
-                for daemon in Self.daemons { try await daemon.unregister() }
+                try self.write("", to: "enabled")
+            } else if FileManager.default.fileExists(atPath: Self.enabledFile.path) {
+                try FileManager.default.removeItem(at: Self.enabledFile)
             }
         }
-        daemonStatus = Self.daemons[0].status
+        enabled = FileManager.default.fileExists(atPath: Self.enabledFile.path)
+    }
+
+    /// Installs or updates the daemons after one password prompt.
+    func install() { runAsRoot("install") }
+
+    /// Stops Nebula and removes the daemons, Nebula's copy and the resolver.
+    func uninstall() {
+        try? FileManager.default.removeItem(at: Self.enabledFile)
+        enabled = false
+        runAsRoot("uninstall")
+    }
+
+    private func runAsRoot(_ argument: String) {
+        let script = Bundle.main.url(forResource: "install", withExtension: "sh")!.path
+        var error: NSDictionary?
+        NSAppleScript(source: "do shell script \"/bin/sh \" & quoted form of \"\(script)\" & \" \(argument)\" with administrator privileges")!
+            .executeAndReturnError(&error)
+        // -128: the user cancelled the password prompt.
+        if let error, error[NSAppleScript.errorNumber] as? Int != -128 { problem = error[NSAppleScript.errorMessage] as? String }
+        installed = Self.isInstalled()
+    }
+
+    /// Whether the daemons and Nebula's copy are the same as in this app's bundle.
+    private static func isInstalled() -> Bool {
+        let resources = Bundle.main.resourceURL!, files = FileManager.default
+        return files.contentsEqual(atPath: Bundle.main.url(forAuxiliaryExecutable: "nebula")!.path, andPath: "/Library/Application Support/LTRFNet/nebula")
+            && ["se.ltrf.ltrfnet.nebula", "se.ltrf.ltrfnet.reload"].allSatisfy {
+                files.contentsEqual(atPath: resources.appending(path: "\($0).plist").path, andPath: "/Library/LaunchDaemons/\($0).plist")
+            }
     }
 
     /// Reads config.json again, writes Nebula's files and renews the certificate now.
@@ -66,7 +94,6 @@ final class Tunnel {
             try await self.writeFiles()
             try await self.renew(force: true)
         }
-        daemonStatus = Self.daemons[0].status
     }
 
     func save(_ new: Config) async {

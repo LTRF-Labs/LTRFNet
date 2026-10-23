@@ -1,4 +1,3 @@
-import ServiceManagement
 import SwiftUI
 
 @main
@@ -24,18 +23,22 @@ struct MenuView: View {
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        Toggle("Enabled", isOn: Binding(get: { tunnel.enabled }, set: { on in Task { await tunnel.setEnabled(on) } }))
+        if tunnel.installed {
+            Toggle("Enabled", isOn: Binding(get: { tunnel.enabled }, set: { on in Task { await tunnel.setEnabled(on) } }))
+        } else {
+            Button("Install…") { tunnel.install() }
+        }
         Text(tunnel.status)
         Button("Renew Now") { Task { await tunnel.renewNow() } }
-        if tunnel.needsApproval {
-            Button("Approve in System Settings…") { SMAppService.openSystemSettingsLoginItems() }
-        }
         Divider()
         Button("Settings…") {
             openWindow(id: "settings")
             NSApp.activate()
         }
         .keyboardShortcut(",")
+        if tunnel.installed {
+            Button("Uninstall…") { tunnel.uninstall() }
+        }
         Button("Quit") { NSApp.terminate(nil) }.keyboardShortcut("q")
     }
 }
