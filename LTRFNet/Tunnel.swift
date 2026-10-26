@@ -2,22 +2,24 @@ import AppKit
 import Observation
 import ServiceManagement
 
-/// The tunnel: the two root daemons, the files they read in /Users/Shared/ltrfnet and the certificate renewal.
+/// The tunnel: the two root daemons, the files in ~/Library/Application Support/LTRFNet and the certificate renewal.
 ///
-/// install.sh installs the daemons once, as root. The daemon se.ltrf.ltrfnet.nebula runs Nebula with config.yml while
-/// the file `enabled` exists. The daemon se.ltrf.ltrfnet.reload sees each file that the app writes or removes there,
-/// copies `resolver` to /etc/resolver/<domain>, and makes Nebula reload (SIGHUP) or stop (SIGTERM).
+/// install.sh installs the daemons and Nebula's config.yml as root, after one password prompt; a change to Settings
+/// needs Install… again. The daemon se.ltrf.ltrfnet.nebula runs Nebula while the file `enabled` exists. The daemon
+/// se.ltrf.ltrfnet.reload sees each file that the app writes or removes there, writes /etc/resolver/<domain> from
+/// `domain` and `nameserver`, and makes Nebula reload (SIGHUP) or stop (SIGTERM).
 /// The 8-hour certificate is renewed with the developer's az login when 4 hours or less are left.
 @MainActor @Observable
 final class Tunnel {
-    static let directory = URL(filePath: "/Users/Shared/ltrfnet")
+    static let directory = FileManager.default.homeDirectoryForCurrentUser.appending(path: "Library/Application Support/LTRFNet")
+    private static let installedConfig = "/Library/Application Support/LTRFNet/config.yml"
     private static let enabledFile = directory.appending(path: "enabled")
     private static let renewBefore: TimeInterval = 4 * 3600
     private static let nebulaCert = Bundle.main.url(forAuxiliaryExecutable: "nebula-cert")!.path
 
     private(set) var config: Config
-    private(set) var installed = Tunnel.isInstalled()
-    private(set) var enabled = FileManager.default.fileExists(atPath: Tunnel.enabledFile.path)
+    private(set) var installed = false
+    private(set) var enabled = false
     private(set) var expires: Date?
     private(set) var problem: String?
 
@@ -30,6 +32,14 @@ final class Tunnel {
 
     init() {
         do { config = try Config.load() } catch { config = Config(); problem = "config.json: \(error.localizedDescription)" }
+        // Version 0.1.0 kept these files in /Users/Shared, where any local user can make the folder.
+        let old = URL(filePath: "/Users/Shared/ltrfnet")
+        if FileManager.default.fileExists(atPath: old.path), !FileManager.default.fileExists(atPath: Self.directory.path) {
+            try? FileManager.default.moveItem(at: old, to: Self.directory)
+            for stale in ["config.yml", "resolver"] { try? FileManager.default.removeItem(at: Self.directory.appending(path: stale)) }
+        }
+        enabled = FileManager.default.fileExists(atPath: Self.enabledFile.path)
+        installed = Self.isInstalled(config)
         try? SMAppService.mainApp.register()
         Task {
             expires = try? await readExpiry()
@@ -58,8 +68,11 @@ final class Tunnel {
         enabled = FileManager.default.fileExists(atPath: Self.enabledFile.path)
     }
 
-    /// Installs or updates the daemons after one password prompt.
-    func install() { runAsRoot("install") }
+    /// Installs or updates the daemons and Nebula's config after one password prompt.
+    func install() async {
+        await attempt { try await self.writeFiles() }
+        if problem == nil { runAsRoot("install", input: config.nebulaYAML(directory: Self.directory)) }
+    }
 
     /// Stops Nebula and removes the daemons, Nebula's copy and the resolver.
     func uninstall() {
@@ -68,22 +81,28 @@ final class Tunnel {
         runAsRoot("uninstall")
     }
 
-    private func runAsRoot(_ argument: String) {
+    /// Runs install.sh as root with `input` on its stdin. Each value is quoted for sh, then for AppleScript.
+    private func runAsRoot(_ argument: String, input: String = "") {
         let script = Bundle.main.url(forResource: "install", withExtension: "sh")!.path
+        let sh = { (value: String) in "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'" }
+        let command = "printf %s \(sh(input)) | /bin/sh \(sh(script)) \(argument) \(sh(Self.directory.path))"
+        let quoted = command.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
         var error: NSDictionary?
-        NSAppleScript(source: "do shell script \"/bin/sh \" & quoted form of \"\(script)\" & \" \(argument)\" with administrator privileges")!
-            .executeAndReturnError(&error)
+        NSAppleScript(source: "do shell script \"\(quoted)\" with administrator privileges")!.executeAndReturnError(&error)
         // -128: the user cancelled the password prompt.
         if let error, error[NSAppleScript.errorNumber] as? Int != -128 { problem = error[NSAppleScript.errorMessage] as? String }
-        installed = Self.isInstalled()
+        installed = Self.isInstalled(config)
     }
 
-    /// Whether the daemons and Nebula's copy are the same as in this app's bundle.
-    private static func isInstalled() -> Bool {
-        let resources = Bundle.main.resourceURL!, files = FileManager.default
-        return files.contentsEqual(atPath: Bundle.main.url(forAuxiliaryExecutable: "nebula")!.path, andPath: "/Library/Application Support/LTRFNet/nebula")
+    /// Whether Nebula's copy, the daemons and Nebula's config are the same as this app and `config` make them.
+    private static func isInstalled(_ config: Config) -> Bool {
+        let resources = Bundle.main.resourceURL!
+        let installedText = { (path: String) in try? String(contentsOfFile: path, encoding: .utf8) }
+        return FileManager.default.contentsEqual(atPath: Bundle.main.url(forAuxiliaryExecutable: "nebula")!.path, andPath: "/Library/Application Support/LTRFNet/nebula")
+            && installedText(installedConfig) == config.nebulaYAML(directory: directory)
             && ["se.ltrf.ltrfnet.nebula", "se.ltrf.ltrfnet.reload"].allSatisfy {
-                files.contentsEqual(atPath: resources.appending(path: "\($0).plist").path, andPath: "/Library/LaunchDaemons/\($0).plist")
+                let plist = try? String(contentsOf: resources.appending(path: "\($0).plist"), encoding: .utf8)
+                return installedText("/Library/LaunchDaemons/\($0).plist") == plist?.replacingOccurrences(of: "__USER_DIR__", with: directory.path)
             }
     }
 
@@ -94,6 +113,7 @@ final class Tunnel {
             try await self.writeFiles()
             try await self.renew(force: true)
         }
+        installed = Self.isInstalled(config)
     }
 
     func save(_ new: Config) async {
@@ -103,13 +123,14 @@ final class Tunnel {
             self.config = new
             try await self.writeFiles()
         }
+        installed = Self.isInstalled(config)
     }
 
     private func attempt(_ work: () async throws -> Void) async {
         do { try await work(); problem = nil } catch { problem = error.localizedDescription }
     }
 
-    /// The folder (yours only; root reads it), the key pair, config.yml and the resolver.
+    /// The folder (yours only), the key pair, and the resolver's domain and nameserver.
     private func writeFiles() async throws {
         guard config.isComplete else { throw Failure("Fill in all fields in Settings…") }
         try FileManager.default.createDirectory(at: Self.directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
@@ -117,8 +138,7 @@ final class Tunnel {
         if !FileManager.default.fileExists(atPath: key.path) {
             _ = try await shell(Self.nebulaCert, "keygen", "-out-key", key.path, "-out-pub", Self.directory.appending(path: "host.pub").path)
         }
-        try write(config.nebulaYAML(directory: Self.directory), to: "config.yml")
-        try write("nameserver \(config.nameserver)\n", to: "resolver")
+        try write(config.nameserver, to: "nameserver")
         try write(config.dnsDomain, to: "domain")
     }
 
@@ -130,8 +150,9 @@ final class Tunnel {
         } catch {
             throw Failure("Run az login")
         }
-        guard let url = URL(string: config.caURL)?.appending(path: "sign") else { throw Failure("caURL is not a URL") }
-        var request = URLRequest(url: url, timeoutInterval: 60)
+        // https only: the request carries the az token.
+        guard let url = URL(string: config.caURL), url.scheme == "https" else { throw Failure("CA URL must start with https://") }
+        var request = URLRequest(url: url.appending(path: "sign"), timeoutInterval: 60)
         request.httpMethod = "POST"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")

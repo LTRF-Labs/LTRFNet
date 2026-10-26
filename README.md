@@ -33,8 +33,8 @@ The app has an ad-hoc signature, so you need no Apple account or certificate.
 
 1. Run `az login` with an account that the CA accepts.
 2. Menu bar → **Settings…**, fill in all fields and save.
-3. Menu bar → **Install…** and enter your admin password. Do this again when the menu shows **Install…** after an
-   update.
+3. Menu bar → **Install…** and enter your admin password. Do this again when the menu shows **Install…**, after an
+   update or a change to Settings.
 4. Menu bar → **Enabled**.
 
 **Uninstall…** removes the daemons, the copy of Nebula and the resolver.
@@ -64,16 +64,21 @@ The menu shows until when the certificate is valid, or the error.
 | What | Where | Who |
 |---|---|---|
 | Settings | `~/.config/ltrfnet/config.json` | the app |
-| Key pair, certificates, `config.yml`, `resolver`, `domain`, `enabled` | `/Users/Shared/ltrfnet/` (0700) | the app writes, root reads |
-| Nebula | daemon `se.ltrf.ltrfnet.nebula` runs `/Library/Application Support/LTRFNet/nebula` while `enabled` exists | root |
-| Resolver, reload and stop | daemon `se.ltrf.ltrfnet.reload`: on each file change, copies `resolver` to `/etc/resolver/<domain>`, then sends SIGHUP to Nebula, or SIGTERM when `enabled` is gone | root |
+| Key pair, certificates, `nameserver`, `domain`, `enabled` | `~/Library/Application Support/LTRFNet/` (0700) | the app writes |
+| Nebula and its `config.yml` | `/Library/Application Support/LTRFNet/` | root; written only by **Install…** |
+| Nebula daemon | `se.ltrf.ltrfnet.nebula` runs Nebula while `enabled` exists | root |
+| Resolver, reload and stop | daemon `se.ltrf.ltrfnet.reload`: on each file change, writes `/etc/resolver/<domain>`, then sends SIGHUP to Nebula, or SIGTERM when `enabled` is gone | root |
 
-- **Install…** runs `install.sh` from the app bundle as root (one password prompt). It copies Nebula out of the
-  bundle, so a process that runs as you cannot replace what root runs, and installs the daemons in
-  `/Library/LaunchDaemons`. The daemons need no team signature, so the app needs no paid Apple Developer membership.
-- The toggle makes or removes `/Users/Shared/ltrfnet/enabled`, so it needs no root.
+- **Install…** runs `install.sh` from the app bundle as root (one password prompt). It installs Nebula, its
+  `config.yml` (from the app, through stdin) and the daemons in `/Library`. Root owns them, so a process that runs as
+  you cannot change what root runs. After a change to Settings, the menu shows **Install…** again. The daemons need no
+  team signature, so the app needs no paid Apple Developer membership.
+- The toggle makes or removes `enabled`, so it needs no root.
 - The app opens at login. Every 30 minutes it renews the certificate when 4 hours or less are left.
 - The private key is yours, not root's: a process that runs as you could already get a certificate with your `az`
   login.
-- The reload daemon accepts only a `*.internal` domain without `/`, so a process that runs as you cannot redirect
-  other domains.
+- The reload daemon reads only the first line of `domain` and `nameserver`. It accepts only a lowercase `*.internal`
+  domain and an IP address, and writes the resolver itself, so a process that runs as you cannot redirect other
+  domains or make root copy another file.
+- A process that runs as you can still replace the certificates and the key. That changes only which mesh Nebula
+  joins, not what root runs.

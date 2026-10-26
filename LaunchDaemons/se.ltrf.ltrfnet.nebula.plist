@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!-- Nebula as root (it creates a utun interface) while the app's "enabled" file exists; launchd starts it again if
-     it stops. The reload daemon stops it when the file is removed. -->
+<!-- Nebula as root (it creates a utun interface) with root's config, while the app's "enabled" file exists; launchd
+     starts it again if it stops. The reload daemon stops it when the file is removed. install.sh fills in
+     __USER_DIR__. -->
 <plist version="1.0">
 <dict>
   <key>Label</key>
@@ -10,13 +11,13 @@
   <array>
     <string>/Library/Application Support/LTRFNet/nebula</string>
     <string>-config</string>
-    <string>/Users/Shared/ltrfnet/config.yml</string>
+    <string>/Library/Application Support/LTRFNet/config.yml</string>
   </array>
   <key>KeepAlive</key>
   <dict>
     <key>PathState</key>
     <dict>
-      <key>/Users/Shared/ltrfnet/enabled</key>
+      <key>__USER_DIR__/enabled</key>
       <true/>
     </dict>
   </dict>

@@ -11,12 +11,14 @@ struct Config: Codable, Equatable {
 
     var isComplete: Bool { ![nameserver, dnsDomain, lighthouse, hubEndpoint, caURL, caAppIDURI].contains("") }
 
-    /// Each value without leading or trailing whitespace: a pasted space or tab breaks config.yml and the resolver.
+    /// Each value without leading or trailing whitespace, and the domain in lowercase: a pasted space or tab breaks
+    /// config.yml, and the reload daemon accepts only a lowercase domain.
     var trimmed: Config {
         var copy = self
         for field: WritableKeyPath<Config, String> in [\.nameserver, \.dnsDomain, \.lighthouse, \.hubEndpoint, \.caURL, \.caAppIDURI] {
             copy[keyPath: field] = copy[keyPath: field].trimmingCharacters(in: .whitespacesAndNewlines)
         }
+        copy.dnsDomain = copy.dnsDomain.lowercased()
         return copy
     }
 
@@ -39,9 +41,9 @@ struct Config: Codable, Equatable {
     func nebulaYAML(directory: URL) -> String {
         """
         pki:
-          ca: \(directory.appending(path: "ca.crt").path)
-          cert: \(directory.appending(path: "host.crt").path)
-          key: \(directory.appending(path: "host.key").path)
+          ca: "\(directory.appending(path: "ca.crt").path)"
+          cert: "\(directory.appending(path: "host.crt").path)"
+          key: "\(directory.appending(path: "host.key").path)"
 
         # The hub: lighthouse and relay.
         static_host_map:

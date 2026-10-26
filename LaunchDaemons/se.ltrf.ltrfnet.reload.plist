@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!-- At load and when the app writes or removes a file: installs the resolver, then makes Nebula reload its PKI
-     (SIGHUP), or stops it (SIGTERM) when the "enabled" file is gone.
-     Only a *.internal domain without "/": a process that runs as the user cannot redirect other domains. -->
+<!-- At load and when the app writes or removes a file: writes /etc/resolver/<domain>, then makes Nebula reload its
+     PKI (SIGHUP), or stops it (SIGTERM) when the "enabled" file is gone. A process that runs as the user writes these
+     files, so root reads only one line of each, accepts only a *.internal domain and an IP address, and writes the
+     resolver itself (no cp, which would follow a link). install.sh fills in __USER_DIR__. -->
 <plist version="1.0">
 <dict>
   <key>Label</key>
@@ -11,13 +12,13 @@
   <array>
     <string>/bin/sh</string>
     <string>-c</string>
-    <string>d=$(cat /Users/Shared/ltrfnet/domain); case "$d" in */*) ;; *.internal) mkdir -p /etc/resolver; cp /Users/Shared/ltrfnet/resolver "/etc/resolver/$d" ;; esac; if [ -e /Users/Shared/ltrfnet/enabled ]; then launchctl kill SIGHUP system/se.ltrf.ltrfnet.nebula; else launchctl kill SIGTERM system/se.ltrf.ltrfnet.nebula; fi</string>
+    <string>u="__USER_DIR__"; d=$(head -n 1 "$u/domain"); n=$(head -n 1 "$u/nameserver"); case "$d" in *[!a-z0-9.-]*) ;; *.internal) case "$n" in ""|*[!0-9a-f.:]*) ;; *) mkdir -p /etc/resolver; printf 'nameserver %s\n' "$n" >"/etc/resolver/$d" ;; esac ;; esac; if [ -e "$u/enabled" ]; then launchctl kill SIGHUP system/se.ltrf.ltrfnet.nebula; else launchctl kill SIGTERM system/se.ltrf.ltrfnet.nebula; fi</string>
   </array>
   <key>RunAtLoad</key>
   <true/>
   <key>WatchPaths</key>
   <array>
-    <string>/Users/Shared/ltrfnet</string>
+    <string>__USER_DIR__</string>
   </array>
 </dict>
 </plist>

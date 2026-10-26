@@ -26,7 +26,7 @@ struct MenuView: View {
         if tunnel.installed {
             Toggle("Enabled", isOn: Binding(get: { tunnel.enabled }, set: { on in Task { await tunnel.setEnabled(on) } }))
         } else {
-            Button("Install…") { tunnel.install() }
+            Button("Install…") { Task { await tunnel.install() } }
         }
         Text(tunnel.status)
         Button("Renew Now") { Task { await tunnel.renewNow() } }
