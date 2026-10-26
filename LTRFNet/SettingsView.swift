@@ -18,7 +18,12 @@ struct SettingsView: View {
                 Button("Reset to Defaults") { draft = Config() }
                 Button("Open config.json") { NSWorkspace.shared.open(Config.file) }
                 Spacer()
-                Button("Save") { Task { await tunnel.save(draft) } }
+                Button("Save") {
+                    Task {
+                        await tunnel.save(draft)
+                        draft = tunnel.config
+                    }
+                }
                     .keyboardShortcut(.defaultAction)
                     .disabled(draft == tunnel.config)
             }

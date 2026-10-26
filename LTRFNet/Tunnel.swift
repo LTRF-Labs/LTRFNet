@@ -97,6 +97,7 @@ final class Tunnel {
     }
 
     func save(_ new: Config) async {
+        let new = new.trimmed
         await attempt {
             try new.save()
             self.config = new

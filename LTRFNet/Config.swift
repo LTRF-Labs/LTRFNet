@@ -11,12 +11,21 @@ struct Config: Codable, Equatable {
 
     var isComplete: Bool { ![nameserver, dnsDomain, lighthouse, hubEndpoint, caURL, caAppIDURI].contains("") }
 
+    /// Each value without leading or trailing whitespace: a pasted space or tab breaks config.yml and the resolver.
+    var trimmed: Config {
+        var copy = self
+        for field: WritableKeyPath<Config, String> in [\.nameserver, \.dnsDomain, \.lighthouse, \.hubEndpoint, \.caURL, \.caAppIDURI] {
+            copy[keyPath: field] = copy[keyPath: field].trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return copy
+    }
+
     static let file = FileManager.default.homeDirectoryForCurrentUser.appending(path: ".config/ltrfnet/config.json")
 
     /// The saved config, or the defaults, which it saves, when there is no file.
     static func load() throws -> Config {
         guard FileManager.default.fileExists(atPath: file.path) else { try Config().save(); return Config() }
-        return try JSONDecoder().decode(Config.self, from: Data(contentsOf: file))
+        return try JSONDecoder().decode(Config.self, from: Data(contentsOf: file)).trimmed
     }
 
     func save() throws {
